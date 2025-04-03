@@ -1,7 +1,8 @@
 import os
 import torch
 import torchaudio
-from pyannote.audio import Model, Inference
+from pyannote.audio import Pipeline, Inference, Model
+from pyannote.core import Segment
 from pydub import AudioSegment
 import httpx
 
@@ -9,14 +10,19 @@ import numpy as np
 from scipy.signal import butter, lfilter
 from config import MySettings
 
-from dotenv import load_dotenv
+# from dotenv import load_dotenv
 from kokoro import KPipeline
 import tempfile
 
 import io
 import wave
 
-load_dotenv()
+####
+from transformers import Wav2Vec2Processor, Wav2Vec2ForCTC
+import torch
+import librosa
+
+# load_dotenv()
 
 
 
@@ -39,6 +45,7 @@ def bandpass_filter(data, lowcut, highcut, fs, order=5):
 
 model = Model.from_pretrained("pyannote/wespeaker-voxceleb-resnet34-LM")
 inference = Inference(model, window="whole")
+diarization_pipeline = Pipeline.from_pretrained("pyannote/speaker-diarization")
 
 pipeline = KPipeline(lang_code='a')
 
@@ -93,6 +100,20 @@ async def whisper_transcribe(audio_path: str):
         raise e
 
 
+model_name = "facebook/wav2vec2-large-960h"
+processor = Wav2Vec2Processor.from_pretrained(model_name)
+wav2vec_model = Wav2Vec2ForCTC.from_pretrained(model_name).to("cuda" if torch.cuda.is_available() else "cpu")
+
+def wav2vec2_transcribe(audio_path):
+    speech, _ = librosa.load(audio_path, sr=16000)
+    print("cuda" if torch.cuda.is_available() else "cpu")
+    input_values = processor(speech, return_tensors="pt", sampling_rate=16000).input_values
+    logits = wav2vec_model(input_values.to("cuda" if torch.cuda.is_available() else "cpu")).logits
+    predicted_ids = torch.argmax(logits, dim=-1)
+    return processor.batch_decode(predicted_ids)[0].lower()
+
+
+
 def generate_speech(text:str) -> bytes:
     generator = pipeline(
         text, voice='af_bella', # <= change voice here
@@ -124,3 +145,39 @@ def generate_speech(text:str) -> bytes:
     return wav_io.getvalue()
 
         
+def diarize_audio(diarization_pipeline, audio_file):
+    """Runs speaker diarization on the given audio file."""
+    diarization = diarization_pipeline(audio_file)
+    speaker_segments = [(turn.start, turn.end, speaker) for turn, _, speaker in diarization.itertracks(yield_label=True)]
+    return speaker_segments
+
+def extract_embeddings(inference, audio_file, speaker_segments):
+    """Extracts embeddings for each speaker segment using the Segment class."""
+    speaker_embeddings = {}
+    
+    for start, end, speaker in speaker_segments:
+        segment = Segment(start, end)
+        embedding = inference(audio_file, segment)
+        if speaker in speaker_embeddings:
+            speaker_embeddings[speaker].append(embedding)
+        else:
+            speaker_embeddings[speaker] = [embedding]
+    
+    return speaker_embeddings
+
+
+def merge_or_select_embeddings(speaker_embeddings):
+    """Either concatenates or selects the best embedding per speaker."""
+    final_embeddings = {}
+    for speaker, embeddings in speaker_embeddings.items():
+        if len(embeddings) > 1:
+            final_embeddings[speaker] = torch.mean(torch.stack(embeddings), dim=0)  # Average embeddings
+        else:
+            final_embeddings[speaker] = embeddings[0]
+    return final_embeddings
+
+def process_audio(audio_file):
+    speaker_segments = diarize_audio(diarization_pipeline, audio_file)
+    speaker_embeddings = extract_embeddings(inference, audio_file, speaker_segments)
+    final_embeddings = merge_or_select_embeddings(speaker_embeddings)
+    return final_embeddings

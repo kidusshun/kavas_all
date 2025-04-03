@@ -1,7 +1,7 @@
 import requests
 from fastapi import File, UploadFile
 from .types import VoiceRecognitionResponse, RAGResponse, FaceRecognitionResponse, TTSResponse, CreateVoiceUserResponse, CreateFaceUserResponse, GenerateRequest
-
+import httpx
 
 import uuid
 
@@ -11,7 +11,8 @@ async def identify_voice(
     try:
         url = "http://localhost:8000/voice/process"
         files = {"file": ("voice.wav", voice_file.file, voice_file.content_type)}
-        response = requests.post(url, files=files)
+        async with httpx.AsyncClient() as client:
+            response = await client.post(url, files=files, timeout=60.0)
         res = response.json()
         return VoiceRecognitionResponse(**res)
     except Exception as e:
@@ -29,15 +30,17 @@ async def answer_user_query(
         })
         res = response.json()
         return RAGResponse(**res)
-    except:
-        raise Exception("Can't generate response")
+    except Exception as e:
+        raise e
 
 async def generate_tts(
     text: str,
 ):
     try:
         url = "http://localhost:8000/voice/tts"
-        response =  requests.post(url, json={"text":text})
+        async with httpx.AsyncClient() as client:
+            response = await client.post(url, json={"text":text}, timeout=60.0)
+        
         return response
     except:
         raise Exception("Can't generate speech")
@@ -49,7 +52,9 @@ async def identify_face(
     try:
         url = "http://localhost:8003/api/v1/identify-face"
         files = {"image": ("image.jpg", image.file, image.content_type)}
-        response = requests.post(url, files=files)
+        async with httpx.AsyncClient() as client:
+            response = await client.post(url, files=files, timeout=60.0)
+
         res = response.json()
         print(res)
         return FaceRecognitionResponse(userid=res[0], score=res[1])
@@ -61,9 +66,12 @@ async def add_voice_user(id: uuid.UUID, audio: UploadFile):
         url = "http://localhost:8000/voice/add_user"
         # Reset file pointer before sending
         await audio.seek(0)
+        
         files = {"file": ("voice.wav", audio.file, audio.content_type)}
         data = {"user_id": str(id)}
-        response = requests.post(url, files=files, data=data)
+        async with httpx.AsyncClient() as client:
+            response = await client.post(url, files=files, data=data, timeout=60.0)
+
         return CreateVoiceUserResponse(**response.json())
     except:
         raise Exception("can't add voice user")
@@ -76,7 +84,9 @@ async def add_face_user(id: uuid.UUID, image: UploadFile):
         await image.seek(0)
         files = {"image": ("image.jpg", image.file, image.content_type)}
         data = {"person_id": str(id)}
-        response = requests.post(url, files=files, data=data)
+        async with httpx.AsyncClient() as client:
+            response = await client.post(url, files=files, data=data, timeout=60.0)
+
         return CreateFaceUserResponse(user_id = response.json())
     except:
         raise Exception("can't add face user")

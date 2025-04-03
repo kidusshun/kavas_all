@@ -1,11 +1,15 @@
+import time
 import uuid
 from .repository import identify_user, add_user_to_db
 from .utils import (
     pyannote_embed_audio,
     whisper_transcribe,
+    wav2vec2_transcribe ,
     generate_speech,
     preprocess_audio_in_memory,
+    process_audio
 )
+
 from .types import TranscriptionResponse, CreateUserResponse
 import httpx
 from psycopg2.extensions import connection
@@ -23,9 +27,14 @@ async def find_user_service(*,audio_file_path: str,user_name:str | None, conn: c
     # pyannote version
     embedded_voice = pyannote_embed_audio(audio_path=preprocessed_audio_path)
 
-    response = await whisper_transcribe(audio_path=audio_file_path)
+    # handle multiple voice
+    # embeddings = process_audio(preprocessed_audio_path)
 
+    start = time.time()
+    response = await whisper_transcribe(audio_path=audio_file_path)
     transcription = response["text"]
+    # transcription = wav2vec2_transcribe(audio_file_path)
+    print("time taken for transcription: ", time.time()-start)
 
     user = identify_user(embedded_voice, conn=conn)
     if not user:

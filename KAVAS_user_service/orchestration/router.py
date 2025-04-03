@@ -12,13 +12,10 @@ async def process_user(
     try:
         # audio = await extract_audio(audio)
         # identify voice
-        print("CALLING VOICE IDENTIFICATION")  
+        print("CALLING VOICE AND FACE IDENTIFICATION")  
         voice_user = await identify_voice(voice_file=audio)
-        print("IDENTIFIED VOICE")  
-
-        # call face recognition service
         face_user = await identify_face(image)
-        # compare the two results
+
 
         print("COMPARING VOICE AND FACE IDENTIFICATION")
         print("VOICE USER: ", voice_user)
@@ -29,14 +26,14 @@ async def process_user(
             await add_voice_user(uu, audio)
             await add_face_user(uu, image)
             request = GenerateRequest(user_id=str(uu), question=voice_user.transcription)
-        elif face_user.userid == 'Unknown':
-            print("FACE NOT IDENTIFIED")
-            await add_face_user(voice_user.userid, image)
-            request = GenerateRequest(user_id=voice_user.userid, question=voice_user.transcription)
         elif not voice_user.userid:
             print("VOICE NOT IDENTIFIED")
             await add_voice_user(uuid.UUID(face_user.userid), audio)
             request = GenerateRequest(user_id=face_user.userid, question=voice_user.transcription)
+        elif face_user.userid == 'Unknown':
+            print("FACE NOT IDENTIFIED")
+            await add_face_user(voice_user.userid, image)
+            request = GenerateRequest(user_id=str(voice_user.userid), question=voice_user.transcription)
         elif face_user.userid == str(voice_user.userid):
             print("USER IDENTIFIED")
             request = GenerateRequest(user_id=face_user.userid, question=voice_user.transcription)
@@ -52,7 +49,7 @@ async def process_user(
         
 
         # call rag service
-        print("ANSWERING USER QUESTION")  
+        print("ANSWERING USER QUESTION :", request.question)  
         response = await answer_user_query(request=request)
         print("USER QUESTION ANSWERED")  
 
@@ -65,3 +62,14 @@ async def process_user(
     except Exception as e:
         raise e
     
+
+
+@user_router.post("/add_face_user")
+async def add_face(
+    id: uuid.UUID,
+    image: UploadFile = File(...),
+):
+    try:
+        return await add_face_user(id, image)
+    except Exception as e:
+        raise e

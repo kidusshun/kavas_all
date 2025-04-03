@@ -28,6 +28,12 @@ def identify_user(embedding: np.ndarray, conn: connection) -> tuple[str, float] 
 def add_user_to_db(embedding: np.ndarray,user_id:uuid.UUID, conn: connection):
     register_vector(conn)
     with conn.cursor() as cur:
+        cur.execute("SELECT id FROM users WHERE id = %s", (str(user_id),))
+        existing_user = cur.fetchone()
+
+        if existing_user:
+            return existing_user[0]
+    
         cur.execute(
             "INSERT INTO users (id, voice_embedding) VALUES (%s,%s) RETURNING id",
             (str(user_id), embedding),
