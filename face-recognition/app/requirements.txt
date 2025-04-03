@@ -1,4 +1,0 @@
-onnx==1.17.0
-opencv-python
-insightface==0.7.3
-numpy==1.22.3

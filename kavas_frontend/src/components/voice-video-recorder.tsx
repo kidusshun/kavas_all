@@ -12,6 +12,7 @@ import {
   RotateCcw,
   Loader2,
 } from "lucide-react";
+``;
 import { toast } from "@/components/ui/use-toast";
 
 export default function VoiceVideoRecorder() {
