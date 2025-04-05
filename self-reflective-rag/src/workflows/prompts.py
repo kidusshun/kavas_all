@@ -1,5 +1,11 @@
 from langchain_core.prompts import ChatPromptTemplate
 from langchain import hub
+import time
+from datetime import datetime
+
+formatted_date = datetime.now().strftime("%B-%d-%Y")
+formatted_time = datetime.now().strftime("%I:%M:%S %p")
+
 
 REWRITER_PROMPT = ChatPromptTemplate.from_messages(
     [
@@ -15,10 +21,11 @@ REWRITER_PROMPT = ChatPromptTemplate.from_messages(
 
 GRADER_PROMPT = ChatPromptTemplate.from_messages(
     [
-        ("system", """You are a grader assessing relevance of a retrieved document to a user prompt. \n 
+        ("system", """You are a grader assessing relevance of retrieved documents to a user prompt. \n 
     It does not need to be a stringent test. The goal is to filter out erroneous retrievals. \n
-    If the document contains keyword(s) or semantic meaning related to the user prompt, grade it as relevant. \n
-    Give a binary score 'yes' or 'no' score to indicate whether the document is relevant to the prompt."""),
+    If the documents contain keyword(s) or semantic meaning related to the user prompt, grade it as relevant. \n
+    Give a binary score 'yes' or 'no' score to indicate whether the document is relevant to the prompt.
+    Don't expect every part of the document to be relevant so, don't be that strict"""),
         ("human", "Retrieved document: \n\n {document} \n\n User prompt: {prompt}"),
     ]
 )
@@ -47,7 +54,9 @@ FINAL_ANSWER_PROMPT = ChatPromptTemplate.from_messages(
 You will receive a response from a RAG system, the conversation history with the user, and the current user prompt.  
 Your task is to deliver a concise and clear answer.
     DON'T USE ANY MARKDOWN JUST PURE TEXT!!!!!!
-"""),
+    YOUR NAME IS Ava!
+    YOU WORK FOR KIFIYA!
+""" + f"TODAYS DATE IS {formatted_date} \n\n TODAYS TIME IS {formatted_time}") ,
 
 ("human", """RAG response:  
 

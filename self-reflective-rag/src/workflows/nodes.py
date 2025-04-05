@@ -14,22 +14,23 @@ def grade_documents(state: RAGState, document_grader: ChatOpenAI) -> RAGState:
     prompt = state['prompt']
     documents = state['documents']
 
-    filtered_docs = []
-    for doc in documents:
-        score = document_grader.invoke({
-            "prompt": str(prompt),
-            "document": str(doc)
-        })
+    concatenated_docs = [" ".join([str(doc) for doc in documents])]
 
-        result = score
-        print(result)
-        if "'yes'" in result or "'Yes'" in result or "'YES'" in result or "yes" in result:
-            print("---GRADE: DOCUMENT RELEVANT---")
-            filtered_docs.append(doc)
-        else:
-            print("---GRADE: DOCUMENT NOT RELEVANT---")
+    score = document_grader.invoke({
+        "prompt": str(prompt),
+        "document": concatenated_docs
+    })
+
+    result = score
+    print(result)
+    if "'yes'" in result or "'Yes'" in result or "'YES'" in result or "yes" in result or "Yes" in result:
+        print("---GRADE: DOCUMENT RELEVANT---")
+    else:
+        concatenated_docs = []
+        print("---GRADE: DOCUMENT NOT RELEVANT---")
     
-    return {"documents": filtered_docs, "prompt": prompt}
+    return {"documents": concatenated_docs, "prompt": prompt}
+
 
 def generate_response(state: RAGState, answer_generator: ChatOpenAI) -> RAGState:
     print('---GENERATING RESPONSE---')

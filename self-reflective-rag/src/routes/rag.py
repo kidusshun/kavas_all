@@ -3,6 +3,7 @@ from dtos.rag import RAGRequest
 from workflows.graphs import workflow
 from langgraph.checkpoint.memory import MemorySaver 
 from langchain_core.messages import HumanMessage, AIMessage
+import time
 
 # instantiate a short term memory checkpointer
 memory = MemorySaver()
@@ -13,6 +14,7 @@ rag_router = APIRouter(prefix='/rag', tags=['RAG'])
 
 @rag_router.post("/query")
 async def get_response(request: RAGRequest):
+    start = time.time()
     if request.user_id != None:
         config = {"configurable": {"thread_id": request.user_id}}
         
@@ -42,9 +44,11 @@ async def get_response(request: RAGRequest):
         },
         config=config
         )
+
     else: 
         result = app.invoke(
             {"prompt" : request.question,}
         )
-    
+    end = time.time()
+    print(f"RAG time: ", end - start)
     return result 

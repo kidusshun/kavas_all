@@ -53,6 +53,13 @@ pipeline = KPipeline(lang_code='a')
 def preprocess_audio_in_memory(audio_path: str):
     # Step 1: Convert to 16kHz Mono WAV format
     audio = convert_audio_in_memory(input_file=audio_path)
+    with open(audio_path, 'rb') as file:
+        byte = file.read()
+
+    with open('test.wav', 'wb') as file:
+        file.write(byte)
+
+    # audio.export("test.wav", format="wav")
 
     with tempfile.NamedTemporaryFile(suffix='.wav', delete=False) as temp_file:
         temp_path = temp_file.name
