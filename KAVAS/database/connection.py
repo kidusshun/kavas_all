@@ -3,14 +3,18 @@ import psycopg2
 from psycopg2 import pool
 from psycopg2.extensions import connection
 from contextlib import contextmanager
+from psycopg2.errors import DuplicateDatabase, DuplicateTable
 from config import MySettings
 from pgvector.psycopg2 import register_vector
-
+import logging
 
 
 # Create a connection pool
 connection_pool = None
 
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 def init_db_pool():
     """Initialize the database connection pool."""
@@ -53,6 +57,8 @@ def get_db_connection():
     try:
         conn = connection_pool.getconn() #type:ignore
         # Register the pgvector extension
+        with conn.cursor() as cursor:
+                cursor.execute("CREATE EXTENSION IF NOT EXISTS vector;")
         register_vector(conn)
         yield conn
     except Exception as e:
@@ -98,3 +104,31 @@ def check_database_connection(max_retries=5, retry_interval=1):
             time.sleep(retry_interval)
     
     return False
+
+def setup_tables():
+    """Ensure required tables exist."""
+    try:
+        with get_db_connection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute("CREATE EXTENSION IF NOT EXISTS vector;")
+                logger.info("pgvector extension enabled.")
+                
+                cursor.execute("""
+                    CREATE TABLE users(
+                        id uuid NOT NULL,
+                        name text,
+                        voice_embedding vector,
+                        PRIMARY KEY(id)
+                    );
+                """)
+
+                conn.commit()
+        logger.info("Tables created successfully.")
+    except DuplicateTable:
+        logger.info("Tables already exist.")
+    except Exception as e:
+        logger.error(f"Error creating tables: {e}")
+        raise
+
+                
+setup_tables()

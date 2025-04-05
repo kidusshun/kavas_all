@@ -2,7 +2,7 @@ import logging
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
-from database.connection import init_db_pool, close_db_pool, check_database_connection
+from database.connection import init_db_pool, close_db_pool, check_database_connection, setup_tables
 from voice.router import voice_router
 import uvicorn
 
@@ -25,6 +25,7 @@ async def lifespan(app: FastAPI):
         init_db_pool()
         
         logger.info("Checking database connection...")
+        setup_tables()
         check_database_connection()
         logger.info("Database connection successful")
     except Exception as e:

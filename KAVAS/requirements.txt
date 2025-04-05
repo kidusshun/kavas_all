@@ -125,7 +125,6 @@ spacy==3.8.4
 spacy-curated-transformers==0.3.0
 spacy-legacy==3.0.12
 spacy-loggers==1.0.5
-speechbrain==1.0.2
 SQLAlchemy==2.0.38
 srsly==2.5.1
 starlette==0.46.0
