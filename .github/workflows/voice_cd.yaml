@@ -59,7 +59,7 @@ jobs:
 
       - name: tag Docker image
         run: |
-          docker tag app kidusshun/kavas_voice_service:latest
+          docker tag kavas_voice_service:latest kidusshun/kavas_voice_service:latest
 
       - name: Push Docker image
         run: |

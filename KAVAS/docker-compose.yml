@@ -18,6 +18,7 @@ services:
       start_period: 5s
 
   app:
+    image: kavas_voice_service:latest
     build:
       context: .
       dockerfile: Dockerfile
