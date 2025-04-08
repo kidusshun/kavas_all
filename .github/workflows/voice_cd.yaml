@@ -50,6 +50,7 @@ jobs:
           echo "DB_POOL_MIN_SIZE=${{ secrets.DB_POOL_MIN_SIZE }}" >> .env
           echo "DB_POOL_MAX_SIZE=${{ secrets.DB_POOL_MAX_SIZE }}" >> .env
           echo "GROQ_API_KEY=${{ secrets.GROQ_API_KEY }}" >> .env
+          echo "HF_TOKEN=${{ secrets.HF_TOKEN }}" >> .env
 
       - name: Build Docker compose image
         run: |
