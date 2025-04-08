@@ -23,6 +23,7 @@ jobs:
 
       - name: install requirements
         run: |
+          cd self-reflective-rag/
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
