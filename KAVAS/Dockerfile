@@ -1,9 +1,9 @@
 # Use an official Python runtime as a parent image
-FROM python:3.12.5-bullseye
+FROM python:3.12.5-slim
 
 # install ffmpeg and cleanup
 RUN apt-get update && \
-    apt-get install -y ffmpeg && \
+    apt-get install -y ffmpeg libpq-dev gcc && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 

@@ -107,17 +107,17 @@ async def whisper_transcribe(audio_path: str):
         raise e
 
 
-model_name = "facebook/wav2vec2-large-960h"
-processor = Wav2Vec2Processor.from_pretrained(model_name)
-wav2vec_model = Wav2Vec2ForCTC.from_pretrained(model_name).to("cuda" if torch.cuda.is_available() else "cpu")
+# model_name = "facebook/wav2vec2-large-960h"
+# processor = Wav2Vec2Processor.from_pretrained(model_name)
+# wav2vec_model = Wav2Vec2ForCTC.from_pretrained(model_name).to("cuda" if torch.cuda.is_available() else "cpu")
 
-def wav2vec2_transcribe(audio_path):
-    speech, _ = librosa.load(audio_path, sr=16000)
-    print("cuda" if torch.cuda.is_available() else "cpu")
-    input_values = processor(speech, return_tensors="pt", sampling_rate=16000).input_values
-    logits = wav2vec_model(input_values.to("cuda" if torch.cuda.is_available() else "cpu")).logits
-    predicted_ids = torch.argmax(logits, dim=-1)
-    return processor.batch_decode(predicted_ids)[0].lower()
+# def wav2vec2_transcribe(audio_path):
+#     speech, _ = librosa.load(audio_path, sr=16000)
+#     print("cuda" if torch.cuda.is_available() else "cpu")
+#     input_values = processor(speech, return_tensors="pt", sampling_rate=16000).input_values
+#     logits = wav2vec_model(input_values.to("cuda" if torch.cuda.is_available() else "cpu")).logits
+#     predicted_ids = torch.argmax(logits, dim=-1)
+#     return processor.batch_decode(predicted_ids)[0].lower()
 
 
 

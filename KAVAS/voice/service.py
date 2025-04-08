@@ -4,7 +4,7 @@ from .repository import identify_user, add_user_to_db
 from .utils import (
     pyannote_embed_audio,
     whisper_transcribe,
-    wav2vec2_transcribe ,
+    # wav2vec2_transcribe ,
     generate_speech,
     preprocess_audio_in_memory,
     process_audio

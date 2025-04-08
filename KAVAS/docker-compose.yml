@@ -24,7 +24,6 @@ services:
       args:
         HF_TOKEN: ${HF_TOKEN}
     container_name: voice_recognition
-    restart: always
     depends_on:
       kavas_db:
         condition: service_healthy
