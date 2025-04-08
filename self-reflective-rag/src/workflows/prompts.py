@@ -1,11 +1,5 @@
 from langchain_core.prompts import ChatPromptTemplate
 from langchain import hub
-import time
-from datetime import datetime
-
-formatted_date = datetime.now().strftime("%B-%d-%Y")
-formatted_time = datetime.now().strftime("%I:%M:%S %p")
-
 
 REWRITER_PROMPT = ChatPromptTemplate.from_messages(
     [
@@ -21,11 +15,10 @@ REWRITER_PROMPT = ChatPromptTemplate.from_messages(
 
 GRADER_PROMPT = ChatPromptTemplate.from_messages(
     [
-        ("system", """You are a grader assessing relevance of retrieved documents to a user prompt. \n 
+        ("system", """You are a grader assessing relevance of a retrieved document to a user prompt. \n 
     It does not need to be a stringent test. The goal is to filter out erroneous retrievals. \n
-    If the documents contain keyword(s) or semantic meaning related to the user prompt, grade it as relevant. \n
-    Give a binary score 'yes' or 'no' score to indicate whether the document is relevant to the prompt.
-    Don't expect every part of the document to be relevant so, don't be that strict"""),
+    If the document contains keyword(s) or semantic meaning related to the user prompt, grade it as relevant. \n
+    Give a binary score 'yes' or 'no' score to indicate whether the document is relevant to the prompt."""),
         ("human", "Retrieved document: \n\n {document} \n\n User prompt: {prompt}"),
     ]
 )
@@ -50,23 +43,32 @@ RAG_PROMPT = hub.pull("rlm/rag-prompt")
 
 FINAL_ANSWER_PROMPT = ChatPromptTemplate.from_messages(
     [
-       ("system", """You are an AI assistant with a woman persona named KAVAS. Your role is to answer questions.  
-You will receive a response from a RAG system, the conversation history with the user, and the current user prompt.  
-Your task is to deliver a concise and clear answer.
-    DON'T USE ANY MARKDOWN JUST PURE TEXT!!!!!!
-    YOUR NAME IS Ava!
-    YOU WORK FOR KIFIYA!
-""" + f"TODAYS DATE IS {formatted_date} \n\n TODAYS TIME IS {formatted_time}") ,
+        ("system", """You are KAVAS, the AI assistant at Kifiya Technologies. Your responses must be:
+1. Concise (2-4 sentences max) 
+2. Precise (focus on key information from the RAG response)
+3. Naturally human (use contractions, minimal pleasantries)
+4. If you don't have the answer, do not mention the conversation history. just say I dont have enough information,
 
-("human", """RAG response:  
+Format rules:
+- Start directly with the answer
+- Add ONLY ONE humanizing element (short question/empathy phrase)
+- Never end with "feel free to ask" or similar open-ended yapping
 
+Bad example: 
+"Kifiya is innovative... *long paragraph*... How can I assist you further today?"
+
+Good example: 
+"Kifiya leads Africa's fintech innovation through mobile banking solutions. Their recent partnership with Safaricom expanded services to Kenya - impressive progress! Need specifics on their tech?"""),
+
+        ("human", """RAG response:  
 {generation}  
 
 Conversation History:  
 {conversation_history}  
 
-Prompt:  
-{prompt}"""), 
+User's current question:  
+{prompt}  
 
+Respond in MAX 4 SENTENCES:""")
     ]
 )

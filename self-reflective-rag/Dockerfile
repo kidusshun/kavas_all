@@ -1,5 +1,5 @@
 # Use an official Python runtime as a parent image
-FROM python:3.11-slim
+FROM python:3.9-slim
 
 # Set the working directory in the container
 WORKDIR /app
@@ -7,17 +7,17 @@ WORKDIR /app
 # Copy the requirements.txt file into the container
 COPY requirements.txt .
 
-# Install any needed packages specified in requirements.txt
+# Install dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy the rest of the application code into the container
+# Copy all app code into container
 COPY . .
 
-# Change working directory to /app/src
+# Set working directory where the FastAPI app is
 WORKDIR /app/src
 
-# Expose the FastAPI port
-EXPOSE 8002
+# Set Python output to be unbuffered
+ENV PYTHONUNBUFFERED=1
 
-# Define the command to run the application
-CMD ["uvicorn", "app:app", "--reload", "--host", "0.0.0.0", "--port", "8002"]
+# Run the script before launching the server
+CMD ["sh", "-c", "python scripts/chat_persistence_service.py && uvicorn app:app --host 0.0.0.0 --port 8000"]

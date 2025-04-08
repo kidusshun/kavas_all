@@ -4,9 +4,7 @@ def decide_to_generate(state: RAGState, max_rewrites: int = 1) -> str:
     print("---INSPECT THE GRADED DOCUMENTS---")
     filtered_documents = state.get("documents", [])
 
-    print('Documents: ', filtered_documents)
-
-    if len(filtered_documents) < 1:
+    if not filtered_documents:
         rewrite_count = state.get("rewrite_count", 0)
         if rewrite_count >= max_rewrites:
             print("---DECISION: GENERATE REACHED MAX QUESTION REWRITE---")
