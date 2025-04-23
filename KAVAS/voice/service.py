@@ -7,7 +7,9 @@ from .utils import (
     # wav2vec2_transcribe ,
     generate_speech,
     preprocess_audio_in_memory,
-    process_audio
+    process_audio,
+    diarize_audio,
+    diarization_pipeline,
 )
 
 from .types import TranscriptionResponse, CreateUserResponse
@@ -23,8 +25,7 @@ async def find_user_service(*,audio_file_path: str,user_name:str | None, conn: c
     # pyannote version
     embedded_voice = pyannote_embed_audio(audio_path=preprocessed_audio_path)
 
-    # handle multiple voice
-    # embeddings = process_audio(preprocessed_audio_path)
+    is_multiple_speakers = True if len(diarize_audio(diarization_pipeline, preprocessed_audio_path))> 1 else False
 
     start = time.time()
     response = await whisper_transcribe(audio_path=audio_file_path)
@@ -34,9 +35,9 @@ async def find_user_service(*,audio_file_path: str,user_name:str | None, conn: c
 
     user = identify_user(embedded_voice, conn=conn)
     if not user:
-        return TranscriptionResponse(userid=None, transcription=transcription)
+        return TranscriptionResponse(userid=None, transcription=transcription, is_multiple_speakers=is_multiple_speakers)
 
-    response = TranscriptionResponse(userid=uuid.UUID(user[0]), transcription=transcription, score=user[1])
+    response = TranscriptionResponse(userid=uuid.UUID(user[0]), transcription=transcription, score=user[1], is_multiple_speakers=is_multiple_speakers)
     return response
 
 
