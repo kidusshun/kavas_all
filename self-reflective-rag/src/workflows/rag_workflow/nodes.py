@@ -1,5 +1,5 @@
 from scripts.embedding_service import PineconeEmbeddingManager
-from workflows.states import RAGState
+from workflows.rag_workflow.states import RAGState
 from langchain_openai import ChatOpenAI
 
 def retrieve_documents(state: RAGState, retriever: PineconeEmbeddingManager) -> RAGState:
@@ -67,19 +67,3 @@ def transform_query(state: RAGState, prompt_rewriter: ChatOpenAI) -> RAGState:
         count = 1
 
     return {"rewritten_prompt": result, "rewrite_count": count}
-
-def generate_assistant_response(state: RAGState, assistant: ChatOpenAI) -> RAGState:
-    print('---GENERATING ASSISTANT RESPONSE---')
-    rag_generation = state['generation']
-    conversation_history = state["conversation_history"]
-    original_prompt = state["prompt"]
-
-    result = assistant.invoke({
-        "generation": rag_generation,
-        "conversation_history": conversation_history,
-        "prompt": original_prompt
-    })
-
-    return {
-        "generation": result
-    }

@@ -16,32 +16,28 @@ class InputState(TypedDict):
 
 class IntermediateState(TypedDict):
     """
-    Represents the intermediate state created during the RAG workflow that isn't of importance to the user
-
+    Represents the intermediate state during processing.
+    
     Attributes:
-        prompt: question
-        rewritten_prompt: the prompt rewritten by the LLM
-        generation: LLM generation
-        documents: list of documents
-        rewrite_count: the number of rewrites of the query
+        rag_generation: the LLM generated response for RAG
+        needs_rag: whether the LLM thinks it needs RAG or not
+        assistant_response: the LLM generated response for the assistant
     """
-    prompt: str
-    rewritten_prompt: str
-    generation: str
-    documents: List[str]
-    rewrite_count: int
+    needs_rag: str
+    assistant_response: str
+    rag_generation: str
 
 class OutputState(TypedDict):
     """
-    REpresents the state of the ouput sent by the workflow
+    Represents the state of the output sent by the workflow.
 
     Attributes:
         generation: the LLM generated response
     """
     generation: str
 
-class RAGState(InputState, IntermediateState, OutputState):
+class MasterState(InputState, IntermediateState, OutputState):
     """
     Represents the state of our graph.
     """
-
+    pass

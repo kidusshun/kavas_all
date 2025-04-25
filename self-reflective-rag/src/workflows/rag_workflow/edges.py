@@ -1,4 +1,4 @@
-from workflows.states import RAGState
+from workflows.rag_workflow.states import RAGState
 
 def decide_to_generate(state: RAGState, max_rewrites: int = 1) -> str:
     print("---INSPECT THE GRADED DOCUMENTS---")
