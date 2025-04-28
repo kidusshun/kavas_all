@@ -6,7 +6,6 @@ class TranscriptionResponse(BaseModel):
     userid: UUID |None
     score: float = 0.0
     transcription: str |None
-    is_multiple_speakers: bool = False
 
 
 class CreateUserResponse(BaseModel):
