@@ -12,7 +12,7 @@ from config import MySettings
 from pathlib import Path
 
 # from dotenv import load_dotenv
-from kokoro import KPipeline
+from kokoro import KPipeline, KModel
 import tempfile
 
 import io
@@ -56,7 +56,9 @@ inference = Inference(model, window="whole", device=device)
 diarization_pipeline = Pipeline.from_pretrained("pyannote/speaker-diarization", cache_dir=cache_dir)
 diarization_pipeline.to(device)
 
-pipeline = KPipeline(lang_code='a')
+
+tts_model = KModel(repo_id="hexgrad/Kokoro-82M").to(device).eval()
+pipeline = KPipeline(lang_code='a', model=tts_model)
 
 
 def preprocess_audio_in_memory(audio_path: str):
