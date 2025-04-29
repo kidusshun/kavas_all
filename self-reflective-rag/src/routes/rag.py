@@ -29,15 +29,12 @@ rag_router = APIRouter(prefix='/rag', tags=['RAG'])
 async def get_response(request: RAGRequest):
     history = chat_history.get_chat_history(request.user_id) 
 
-    print(history)
-
     if history == None:
         history_as_strings = [
             "None"
         ]
     else:
-        history_as_strings = [json.dumps(item) for item in history["full_history"]]
-        print("History: ", history["full_history"])
+        history_as_strings = [json.dumps(history[item]) for item in history]
 
     result = app.invoke(
         {

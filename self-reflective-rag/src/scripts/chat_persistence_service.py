@@ -306,12 +306,6 @@ class ChatHistory:
     def greet_user(self, user_id):
         # obtain the history
         history = self.get_chat_history(user_id=user_id)
-        if history == None:
-            history_as_strings = [
-                "None"
-            ]
-        else:
-            history_as_strings = [json.dumps(item) for item in history["full_history"]]        
 
         # get the current time
         time = datetime.now()
