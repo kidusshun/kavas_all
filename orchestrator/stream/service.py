@@ -34,7 +34,7 @@ class ProcessRequest:
         self.audio = None
         self.face_rec_ws = None
         self.latest_face_rec_state: Optional[FaceRecognitionResponse] = None
-        self.face_rec_config: Dict[str, Any] = {
+        self.face_rec_config = {
             "action": "configure",
             "threshold": 0.5,
             "max_faces": 5
@@ -46,7 +46,7 @@ class ProcessRequest:
         self.face_rec_url = f"ws://{face_host}:{face_port}/api/v2/identify"
         self.voice_rec_url = f"http://{voice_host}:{voice_port}/voice/process"
         self.ws_lock = Lock()
-        
+        self.isQueryNoise = False
     async def _ensure_face_rec_connection(self):
         """Ensures the WebSocket connection for face recognition is active."""
         if self.face_rec_ws and (await self.face_rec_ws.ping()):
@@ -160,7 +160,7 @@ class ProcessRequest:
         except Exception as e:
             print(f"Error during Face Rec WebSocket send/recv/process: {type(e).__name__}: {e}")
     
-    async def process_input(self, audio_data, img_data):
+    async def process_input(self, audio_data):
         """
         Processes audio and video input, identifies user using latest face state.
         """
@@ -172,10 +172,7 @@ class ProcessRequest:
 
         print("transcription: ", self.transcription)
         
-        if img_data is not None:
-            await self._process_video_frame_ws(img_data)
-
-        current_face_state = self.latest_face_rec_state.copy()
+        current_face_state = self.latest_face_rec_state.model_copy()
 
         if voice_user_result and current_face_state.matches:
             self.user_id = await self.identify_user(voice_user_result, current_face_state)
@@ -191,6 +188,7 @@ class ProcessRequest:
         """
         
         voice_id = voice_user.userid
+        is_multiple_speakers = False # TODO: Modify basd on new voice detection logic
         face_matches = face_user.matches
         processed_faces = len(face_matches)
         face_detected = face_user.face_detected
@@ -225,7 +223,8 @@ class ProcessRequest:
             # Subscenario 3.1: Face not recognized
             if unknown_face_count == 1 and not known_face_matches:
                 print("SUB-SCENARIO 3.1: FACE NOT RECOGNIZED")
-                await add_face_user(voice_id, self.image)
+                if not is_multiple_speakers:
+                    await add_face_user(voice_id, self.image)
                 return str(voice_id)
             # Subscenario 3.2: Face recognized
             elif len(known_face_matches) == 1:
@@ -235,18 +234,22 @@ class ProcessRequest:
                     return known_face_matches[0].person_id
                 else:
                     print("SUB-SCENARIO 3.2.2: FACE ID != VOICE ID")
-                    # TODO: possibly check speaker location pre update
+                    # NOTE: possibly remove update since edge cases can cause problems here (speaker outside camera view)
                     await update_face_user(voice_id, self.image)
                     return str(voice_id)
 
         # Scenario 4: Multiple face matches (recognized and/or unrecognized) and voice recognized
         elif voice_id and processed_faces > 1:
             print("SCENARIO 4: MULTIPLE FACE MATCHES AND VOICE RECOGNIZED")
+            if is_multiple_speakers:
+                self.isQueryNoise = True
+                return None
             face_ids = [match.person_id for match in known_face_matches]
             # Subscenario 4.1: All faces not recognized
             if unknown_face_count == processed_faces and not known_face_matches:
                 print("SUB-SCENARIO 4.1: ALL FACES NOT RECOGNIZED")
-                await add_face_user(voice_id, self.image)
+                if not is_multiple_speakers:
+                    await add_face_user(voice_id, self.image)
                 return str(voice_id)
             # Subscenario 4.2: Mixed recognition on face and voice recognized
             elif known_face_matches and unknown_face_count > 0:
@@ -256,7 +259,8 @@ class ProcessRequest:
                     return str(voice_id)
                 else:
                     print("SUB-SCENARIO 4.2.2: VOICE ID NOT IN LIST OF FACE IDs")
-                    await add_face_user(voice_id, self.image)
+                    if not is_multiple_speakers:
+                        await add_face_user(voice_id, self.image)
                     return str(voice_id)
             # Subscenario 4.3: All recognized faces and voice recognized
             elif len(known_face_matches) == processed_faces and unknown_face_count == 0:
@@ -266,7 +270,8 @@ class ProcessRequest:
                     return str(voice_id)
                 else:
                     print("SUB-SCENARIO 4.3.2: VOICE ID NOT IN LIST OF FACE IDs")
-                    print(f"# Handle updating face associated with voice_id {voice_id} when multiple recognized faces are present: {face_ids}")
+                    # NOTE: possibly check most probable speaking face and and update his face assumes a lot and could be prone to errors
+                    await update_face_user(voice_id, self.image)
                     return str(voice_id)
 
         # Scenario: No face detected (skipped for now)
@@ -282,13 +287,12 @@ class ProcessRequest:
         print("UNHANDLED SCENARIO.")
         return None
 
-    async def __call__(self, audio_payload, img_payload):
-        if not audio_payload and not img_payload:
-            print("Missing audio and video payload; skipping this message.")
+    async def __call__(self, audio_payload):
+        if not audio_payload:
+            print("Missing audio payload; skipping this message.")
             return None
         
         audio_data = None
-        img = None
         
         if audio_payload:
             try:
@@ -296,13 +300,6 @@ class ProcessRequest:
             except Exception as e:
                 print("Error decoding audio payload:", e)
         
-        if img_payload:
-            try:
-                video_bytes = base64.b64decode(img_payload)
-                np_arr = np.frombuffer(video_bytes, np.uint8)
-                img = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
-            except Exception as e:
-                print("Error decoding video payload:", e)
 
 
         # Convert audio bytes to UploadFile
@@ -314,24 +311,17 @@ class ProcessRequest:
             )
 
         # Convert image bytes to UploadFile
-        img_upload_file = None
-        if img is not None:
-            _, img_encoded = cv2.imencode('.jpg', img)
-            img_bytes = img_encoded.tobytes()
-            img_upload_file = UploadFile(
-            filename="image.jpg",
-            file=BytesIO(img_bytes),
-            )
 
-        if img_upload_file:
-            self.image = img_upload_file
         if audio_upload_file:
             self.audio = audio_upload_file
 
         # Pass the converted UploadFile objects to process_input
-        await self.process_input(audio_data, img)
+        await self.process_input(audio_data)
         
-
+        if self.isQueryNoise:
+            self.isQueryNoise = False
+            return None
+        
         if audio_payload and self.transcription != "":
             print("send transcription to RAG")
             answer = await answer_user_query(GenerateRequest(user_id = self.user_id if self.user_id else str(uuid.uuid4()), question = self.transcription))

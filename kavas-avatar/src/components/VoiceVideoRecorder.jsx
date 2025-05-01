@@ -61,12 +61,14 @@ export const VoiceVideoRecorder = ({ onAudioReceived, isTalking }) => {
     return new Blob(byteArrays, { type: contentType });
   };
 
-  const handleAudioReceived = (audioBase64, lipsyncData) => {
+  const handleAudioReceived = (audioBase64, lipsyncData, isValid) => {
     console.log("Audio handler called");
-    const audioBlob = base64ToBlob(audioBase64, "audio/wav");
-    const audioUrl = URL.createObjectURL(audioBlob);
-    onAudioReceived(audioUrl, lipsyncData);
     isWaitingForResponse.current = false;
+    if (isValid){
+      const audioBlob = base64ToBlob(audioBase64, "audio/wav");
+      const audioUrl = URL.createObjectURL(audioBlob);
+      onAudioReceived(audioUrl, lipsyncData);
+    }
   };
 
   const getSupportedMimeType = () => {
@@ -140,13 +142,11 @@ export const VoiceVideoRecorder = ({ onAudioReceived, isTalking }) => {
           const reader = new FileReader();
           reader.onloadend = () => {
             const base64Audio = reader.result.split(",")[1];
-            const videoBase64 = captureVideoFrame();
 
             if (ws.current?.readyState === WebSocket.OPEN) {
               ws.current.send(
                 JSON.stringify({
                   audio: base64Audio,
-                  video: videoBase64,
                 })
               );
               console.log("Sent audio and video payload");
@@ -330,7 +330,7 @@ export const VoiceVideoRecorder = ({ onAudioReceived, isTalking }) => {
         try {
           const response = JSON.parse(event.data);
           if (response.audio && response.lipsync) {
-            handleAudioReceived(response.audio, response.lipsync);
+            handleAudioReceived(response.audio, response.lipsync, response.valid);
           }
         } catch (error) {
           console.error("Error processing websocket message:", error);
