@@ -8,5 +8,5 @@ class InferenceOrRAG(BaseModel):
     )
 
     assistant_response: str = Field(
-        description="The response provided if the binary_score is 'yes', i.e the prompt requires a RAG. If the binary_score is 'no', this containes the response 'None'."
+        description="The response provided. Empty string ('') for RAG queries, otherwise a helpful reply."
     )

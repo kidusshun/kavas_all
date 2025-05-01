@@ -11,15 +11,12 @@ def inference_or_rag(state: InputState, master: ChatOpenAI) -> any:
     prompt = state['prompt']
     conversation_history = "\n".join(state["conversation_history"])
 
-    print("Conversation history: ", conversation_history)
-
     result = master.invoke({
         "prompt": prompt,
         "conversation_history": conversation_history
     })
 
     print("Needs RAG: ",result.binary_score)
-    print("Assistants response: ", result.assistant_response)
 
     return {
         "needs_rag": result.binary_score,
