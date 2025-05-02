@@ -1,6 +1,19 @@
 from scripts.embedding_service import PineconeEmbeddingManager
 from workflows.rag_workflow.states import RAGState
+from workflows.rag_workflow.agents import query_extractor
 from langchain_openai import ChatOpenAI
+from dtos.rag import RAGRequest
+
+def query_extractor(talks: list[RAGRequest], prompt_extractor=query_extractor) -> str:
+    """
+    Extract the query from the input state.
+    """
+    print('---EXTRACTING QUERY---')
+    prompt = prompt_extractor.invoke({
+        "questions": [talk.question for talk in talks]
+    })
+
+    return prompt
 
 def retrieve_documents(state: RAGState, retriever: PineconeEmbeddingManager) -> RAGState:
     print('---RETRIEVING---')
