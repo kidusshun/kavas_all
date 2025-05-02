@@ -1,10 +1,15 @@
 from langchain_openai import ChatOpenAI
 from workflows.master.states import InputState, OutputState, MasterState
+from langgraph.checkpoint.memory import MemorySaver
+
+# temp memory checkpointer
+memory = MemorySaver()
+
 
 # import and set up the RAG workflow
 from workflows.rag_workflow.graphs import rag_workflow
 
-rag_generator = rag_workflow.compile()
+rag_generator = rag_workflow.compile(checkpointer=memory)
 
 def inference_or_rag(state: InputState, master: ChatOpenAI) -> any:
     print('---INFERENCE OR RAG---')
