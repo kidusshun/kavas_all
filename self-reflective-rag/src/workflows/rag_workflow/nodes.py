@@ -4,6 +4,7 @@ from workflows.rag_workflow.agents import query_extractor
 from langchain_openai import ChatOpenAI
 from dtos.rag import RAGRequest
 
+
 def query_extractor(talks: list[RAGRequest], prompt_extractor=query_extractor) -> str:
     """
     Extract the query from the input state.
