@@ -165,6 +165,7 @@ async def websocket_img(websocket: WebSocket):
     """
 
     global isProcessingVideo
+    global isProcessing
 
     await websocket.accept()
 
@@ -187,7 +188,7 @@ async def websocket_img(websocket: WebSocket):
 
                 video_payload = data.get("video")
                 # try:
-                response = await request_handler.process_video(video_payload)
+                response = await request_handler.process_video(video_payload, isProcessing)
                 if response:
                     end = time.time()
                     print(f'Video process Total TIme: ', end - start)

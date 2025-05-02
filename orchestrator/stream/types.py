@@ -19,6 +19,7 @@ class FaceRecognitionResponse(BaseModel):
    processed_faces: int
    status: str
    tracked: Optional[List[str]] = []
+   new_faces: Optional[List[str]] = []
    lip_center: Optional[List[float]] = []
    error: Optional[str] = None
 
