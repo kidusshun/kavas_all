@@ -8,7 +8,7 @@ import httpx
 import io
 from PIL import Image
 import wave
-from .utils import answer_user_query, generate_tts, add_voice_user, add_face_user, update_face_user
+from .utils import answer_user_query, generate_tts, add_voice_user, add_face_user, greet_user, update_face_user
 from .types import GenerateRequest, VoiceRecognitionResponse, FaceRecognitionResponse
 from fastapi import UploadFile
 from starlette.datastructures import UploadFile as StarletteUploadFile
@@ -432,11 +432,15 @@ class ProcessRequest:
         await self._process_video_frame_ws(img)
         
         if self.latest_face_rec_state.new_faces and not isProcessingAudio:
-            # TODO: Greeting init
-            # First send request to rag greet new_faces holds the list of new users
-            # Then format(add tts and stuff) and send to avatar
-            # then send mark_greeted face rec with this function mark_greeted_users(new_faces)
-            pass
+            user_id = self.latest_face_rec_state.new_faces[0]
+            
+            # rag greeting
+            response = await greet_user(user_id)
+
+            # send to tts
+            tts_response = await generate_tts(response.generation)
+
+            return tts_response    
         
     async def close(self):
         """Closes the WebSocket connection."""

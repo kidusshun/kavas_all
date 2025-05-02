@@ -89,7 +89,8 @@ async def send_results_periodically(websocket: WebSocket, response):
 
             json_data = {'audio': byte_string,
                          'lipsync': lipsync_data,
-                         'valid': True}
+                         'valid': True,
+                         'is_greeting': False}
             # Send audio content as binary
             asyncio.create_task(websocket.send_text(json.dumps(json_data)))
             time.sleep(1)
@@ -189,6 +190,37 @@ async def websocket_img(websocket: WebSocket):
                 video_payload = data.get("video")
                 # try:
                 response = await request_handler.process_video(video_payload, isProcessing)
+                
+                byte_string = base64.b64encode(response.content).decode('utf-8')
+                
+                # save it temporarly
+                # Generate a random UUID
+                unique_filename = "generated_audio"
+
+                # Decode the base64 string back to bytes
+                audio_bytes = base64.b64decode(byte_string)
+
+                # save the audio temporarly
+                with open(unique_filename + '.wav', 'wb') as wav_file:
+                    wav_file.write(audio_bytes)
+
+                ## generate the lipsync
+                lip_sync_message(unique_filename)
+                
+                ## load the json
+                with open(unique_filename + '.json', 'rb') as json_file:
+                    lipsync_data = json.load(json_file)
+                
+                json_data = {'audio': byte_string,
+                         'lipsync': lipsync_data,
+                         'valid': True,
+                         'isGreeting': False}
+                
+                # Send audio content as binary
+                asyncio.create_task(websocket.send_text(json.dumps(json_data)))
+                time.sleep(1)
+                isProcessing = False
+
                 if response:
                     end = time.time()
                     print(f'Video process Total TIme: ', end - start)

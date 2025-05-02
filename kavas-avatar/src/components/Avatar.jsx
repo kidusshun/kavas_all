@@ -21,6 +21,7 @@ export function Avatar({
   lipsyncData,
   onFinishedTalking,
   isTalking,
+  isGreeting = false,
 }) {
   const group = useRef();
   const { scene } = useGLTF("models/avatar.glb");
@@ -35,7 +36,7 @@ export function Avatar({
   // Store mouth cues and audio reference
   const [mouthCues, setMouthCues] = useState([]);
   const audioRef = useRef(null);
-  const [animation, setAnimation] = useState("Idle");
+  const [animation, setAnimation] = useState("Talking");
 
   useEffect(() => {
     if (lipsyncData) {
@@ -45,7 +46,11 @@ export function Avatar({
 
   useEffect(() => {
     if (audioUrl && isTalking) {
-      setAnimation("Talking");
+      if (isGreeting) {
+        setAnimation("Bow");
+      } else {
+        setAnimation("Talking");
+      }
 
       // Create and play new audio instance
       const audio = new Audio(audioUrl);

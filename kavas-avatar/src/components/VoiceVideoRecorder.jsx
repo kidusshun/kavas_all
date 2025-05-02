@@ -27,7 +27,6 @@ export const VoiceVideoRecorder = ({ onAudioReceived, isTalking }) => {
         videoRef.current &&
         canvasRef.current
       ) {
-
         const videoBase64 = captureVideoFrame();
 
         if (ws_img.current?.readyState === WebSocket.OPEN) {
@@ -61,13 +60,18 @@ export const VoiceVideoRecorder = ({ onAudioReceived, isTalking }) => {
     return new Blob(byteArrays, { type: contentType });
   };
 
-  const handleAudioReceived = (audioBase64, lipsyncData, isValid) => {
+  const handleAudioReceived = (
+    audioBase64,
+    lipsyncData,
+    isValid,
+    isGreeting = false
+  ) => {
     console.log("Audio handler called");
     isWaitingForResponse.current = false;
-    if (isValid){
+    if (isValid) {
       const audioBlob = base64ToBlob(audioBase64, "audio/wav");
       const audioUrl = URL.createObjectURL(audioBlob);
-      onAudioReceived(audioUrl, lipsyncData);
+      onAudioReceived(audioUrl, lipsyncData, isGreeting);
     }
   };
 
@@ -170,7 +174,6 @@ export const VoiceVideoRecorder = ({ onAudioReceived, isTalking }) => {
     }
   };
 
-
   // Function to save image to file (optional)
   const saveImageToFile = (base64Data) => {
     const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
@@ -190,11 +193,11 @@ export const VoiceVideoRecorder = ({ onAudioReceived, isTalking }) => {
       byteArrays.push(byteArray);
     }
 
-    const blob = new Blob(byteArrays, { type: 'image/jpeg' });
+    const blob = new Blob(byteArrays, { type: "image/jpeg" });
 
     // Create download link (alternative: send to server)
     const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
+    const a = document.createElement("a");
     a.href = url;
     a.download = filename;
     document.body.appendChild(a);
@@ -301,24 +304,38 @@ export const VoiceVideoRecorder = ({ onAudioReceived, isTalking }) => {
     const imageData = canvasRef.current.toDataURL("image/jpeg").split(",")[1];
 
     // saveImageToFile(imageData);
-    return imageData
-
+    return imageData;
   };
 
   useEffect(() => {
     const setUpWs = () => {
-      ws.current = new WebSocket(
-        "ws://localhost:8004/ws/media"
-      );
-      ws_img.current = new WebSocket(
-        "ws://localhost:8004/ws/img"
-      )
+      ws.current = new WebSocket("ws://localhost:8004/ws/media");
+      ws_img.current = new WebSocket("ws://localhost:8004/ws/img");
 
       ws.current.onopen = () => {
         console.log("WebSocket connection established");
       };
       ws_img.current.onopen = () => {
         console.log("Image WebSocket connection established");
+      };
+      ws_img.current.onmessage = (event) => {
+        if (event.data === "thinking") {
+          console.log("Cannot listen now");
+          return;
+        }
+        try {
+          const response = JSON.parse(event.data);
+          if (response.audio && response.lipsync) {
+            handleAudioReceived(
+              response.audio,
+              response.lipsync,
+              response.valid,
+              response.isGreeting
+            );
+          }
+        } catch (error) {
+          console.error("Error processing websocket message:", error);
+        }
       };
 
       ws.current.onmessage = (event) => {
@@ -330,7 +347,11 @@ export const VoiceVideoRecorder = ({ onAudioReceived, isTalking }) => {
         try {
           const response = JSON.parse(event.data);
           if (response.audio && response.lipsync) {
-            handleAudioReceived(response.audio, response.lipsync, response.valid);
+            handleAudioReceived(
+              response.audio,
+              response.lipsync,
+              response.valid
+            );
           }
         } catch (error) {
           console.error("Error processing websocket message:", error);
@@ -429,7 +450,7 @@ export const VoiceVideoRecorder = ({ onAudioReceived, isTalking }) => {
       <div className="circle" ref={circleRef}></div>
       <video
         ref={videoRef}
-        style={{ opacity: 0, position: 'absolute' }}
+        style={{ opacity: 0, position: "absolute" }}
         autoPlay
         playsInline
       />

@@ -9,16 +9,22 @@ function App() {
     lipsyncData: null,
   });
   const [isTalking, setIsTalking] = useState(false);
+  const [isGreeting, setIsGreeting] = useState(false);
 
   // Memoized function to prevent unnecessary re-renders
-  const handleAudioReceived = useCallback((audioUrl, lipsyncData) => {
-    setAudioData({ audioUrl, lipsyncData });
-    console.log("I am being called");
-    setIsTalking(true);
-  }, []);
+  const handleAudioReceived = useCallback(
+    (audioUrl, lipsyncData, isGreeting) => {
+      setAudioData({ audioUrl, lipsyncData });
+      console.log("I am being called");
+      setIsTalking(true);
+      setIsGreeting(isGreeting);
+    },
+    []
+  );
 
   const handleAvatarFinishedTalking = useCallback(() => {
     setIsTalking(false);
+    setIsGreeting(false);
     setAudioData({
       audioUrl: null,
       lipsyncData: null,
@@ -34,6 +40,7 @@ function App() {
           audioData={audioData}
           onAvatarFinishedTalking={handleAvatarFinishedTalking}
           isTalking={isTalking}
+          isGreeting={isGreeting}
         />
       </Canvas>
       <UI onAudioReceived={handleAudioReceived} isTalking={isTalking} />

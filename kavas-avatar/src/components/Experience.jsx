@@ -5,6 +5,7 @@ export const Experience = ({
   audioData,
   onAvatarFinishedTalking,
   isTalking,
+  isGreeting = false,
 }) => {
   return (
     <>
@@ -20,6 +21,7 @@ export const Experience = ({
           lipsyncData={audioData.lipsyncData}
           onFinishedTalking={onAvatarFinishedTalking}
           isTalking={isTalking}
+          isGreeting={isGreeting}
         />
       </group>
       <ambientLight intensity={2.3} />

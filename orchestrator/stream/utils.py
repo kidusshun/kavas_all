@@ -37,6 +37,14 @@ async def answer_user_query(
     except Exception as e:
         raise e
 
+async def greet_user(user_id: str):
+    try:
+        url = f"http://127.0.0.1:8000/users/{user_id}/greet"
+        response = requests.post(url)
+        return response.json()
+    except Exception as e:
+        raise e
+
 
 async def add_voice_user(id: uuid.UUID, audio: UploadFile):
     host = os.getenv("VOICE_RECOGNITION_HOST")
