@@ -77,6 +77,31 @@ async def add_face_user(id: uuid.UUID, image: UploadFile):
     except Exception as e:
         logger.info(f"Error adding face user {id}")
         return None
+    
+    
+
+async def mark_greeted_users(person_ids: list[str]):
+    """Consumer for marking multiple users as greeted"""
+    try:
+        host = os.getenv("FACE_RECOGNITION_HOST")
+        port = os.getenv("FACE_RECOGNITION_PORT")
+        url = f"http://{host}:{port}/api/v2/mark-greeted"
+        
+        form_data = [("person_ids", pid) for pid in person_ids]
+
+        async with httpx.AsyncClient() as client:
+            response = await client.post(url, data=form_data, timeout=30.0)
+            data = response.json()
+
+            if response.status_code == 200 and data.get("status") == "success":
+                return data
+            
+            logger.error(f"Mark greeted failed: {data.get('message', 'Unknown error')}")
+            return None
+    except Exception as e:
+        logger.error(f"Error in mark_greeted_users: {str(e)}")
+        return None
+
 
 async def update_face_user(id: uuid.UUID, image: UploadFile):
     try:

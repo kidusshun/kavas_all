@@ -400,7 +400,7 @@ class ProcessRequest:
             return None
         
         
-    async def process_video(self, img_payload):
+    async def process_video(self, img_payload, isProcessingAudio):
 
         if not img_payload:
             print("Missing video payload; skipping this message.")
@@ -430,6 +430,13 @@ class ProcessRequest:
 
         # Pass the converted UploadFile objects to process_input
         await self._process_video_frame_ws(img)
+        
+        if self.latest_face_rec_state.new_faces and not isProcessingAudio:
+            # TODO: Greeting init
+            # First send request to rag greet new_faces holds the list of new users
+            # Then format(add tts and stuff) and send to avatar
+            # then send mark_greeted face rec with this function mark_greeted_users(new_faces)
+            pass
         
     async def close(self):
         """Closes the WebSocket connection."""
