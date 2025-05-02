@@ -1,7 +1,7 @@
 import json, os
 from dotenv import find_dotenv, load_dotenv
 from fastapi import APIRouter
-from dtos.rag import RAGRequest
+from dtos.rag import RAGRequest, RAGMultiRequest
 from workflows.master.graphs import master_workflow 
 from workflows.rag_workflow.graphs import rag_workflow
 from workflows.rag_workflow.nodes import query_extractor
@@ -54,8 +54,10 @@ async def get_response(request: RAGRequest):
     return result
 
 @rag_router.post("/multi_query")
-def get_multi_response(request: list[RAGRequest]):
-    prompt = query_extractor(request)
+def get_multi_response(request: RAGMultiRequest):
+    print(request)
+    req = request.queries
+    prompt = query_extractor(req)
 
     print(prompt)
 
