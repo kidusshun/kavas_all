@@ -315,7 +315,7 @@ class ChatHistory:
         greeting_prompt = [
             {"role": "system",
              "content": "You are KAVAS, the AI assistant at Kifiya Technologies. You can answer any question about the company and what it does. Your purpose it to greet people provided their chat history. Look for their names and greet them accordingly. If you can't find their name still greet them but also introduce yourself and tell them what you can do and you know be a good receptionist.\n"
-             "           You will get the chat_history, the time(datetime.datetime.now()) so you can determine whether to use evening or morning afternoon."},
+             "           You will get the chat_history, the time(datetime.datetime.now()) so you can determine whether to use evening or morning afternoon. MAKE IT VERY SHORT!! NO MORE THAN 12 WORDS!!!"},
              {"role": "user",
               "content": f"chat_history: {history} \n\n time: {hour}"}
         ]
