@@ -196,8 +196,8 @@ class ProcessRequest:
             self.isQueryNoise = True
             return None
         
-        voice_ids = set(voice_user.user_id for voice_user in voice_users if voice_user.user_id != None)
-        null_voice_ids = len(set(voice_user.user_id for voice_user in voice_users if voice_user.user_id == None))
+        voice_ids = set(voice_user.userid for voice_user in voice_users if voice_user.userid != None)
+        null_voice_ids = len(set(voice_user.userid for voice_user in voice_users if voice_user.userid == None))
         is_multiple_speakers = len(voice_ids) > 1
         face_matches = face_user.matches
         processed_faces = len(face_matches)
@@ -238,8 +238,8 @@ class ProcessRequest:
                         await add_voice_user(new_id, self.audio)
                         await add_face_user(new_id, self.image)
                         corrected_queries = [
-                            VoiceRecognitionResponse(user_id=new_id, score=voice_user.score)
-                            if voice_user.user_id is None else voice_user
+                            VoiceRecognitionResponse(userid=new_id, transcription=voice_user.transcription, score=voice_user.score)
+                            if voice_user.userid is None else voice_user
                             for voice_user in voice_users
                         ]
                         self.queries = corrected_queries
@@ -249,8 +249,8 @@ class ProcessRequest:
                         user_id = uuid.UUID(face.person_id)
                         await add_voice_user(user_id, self.audio)
                         corrected_queries = [
-                            VoiceRecognitionResponse(user_id=user_id, score=voice_user.score)
-                            if voice_user.user_id is None else voice_user
+                            VoiceRecognitionResponse(userid=user_id, transcription=voice_user.transcription,score=voice_user.score)
+                            if voice_user.userid is None else voice_user
                             for voice_user in voice_users
                         ]
                         self.queries = corrected_queries
@@ -279,7 +279,7 @@ class ProcessRequest:
                         print("SUB-SCENARIO 2.1.2: FACE RECOGNIZED")
                         if known_face_matches[0].person_id == str(voice_id):
                             print("SUB-SCENARIO 2.1.2.1: FACE ID == VOICE ID")
-                            self.queries = [v for v in voice_users if v.user_id == voice_id]
+                            self.queries = [v for v in voice_users if v.userid == voice_id]
                             return str(voice_id)
                         else:
                             print("SUB-SCENARIO 2.1.2.2: FACE ID != VOICE ID")
@@ -299,19 +299,19 @@ class ProcessRequest:
                         print("SUB-SCENARIO 2.2.2: MIXED RECOGNITION ON FACE")
                         if str(voice_id) in face_ids:
                             print("SUB-SCENARIO 2.2.2.1: VOICE ID IN LIST OF FACE IDs")
-                            self.queries = [v for v in voice_users if v.user_id == voice_id]
+                            self.queries = [v for v in voice_users if v.userid == voice_id]
                             return str(voice_id)
                         else:
                             print("SUB-SCENARIO 2.2.2.2: VOICE ID NOT IN LIST OF FACE IDs")
                             await add_face_user(voice_id, self.image)
-                            self.queries = [v for v in voice_users if v.user_id == voice_id]
+                            self.queries = [v for v in voice_users if v.userid == voice_id]
                             return str(voice_id)
                     # Subscenario 2.2.3: All recognized faces
                     elif len(known_face_matches) == processed_faces and unknown_face_count == 0:
                         print("SUB-SCENARIO 2.2.3: ALL RECOGNIZED FACES")
                         if str(voice_id) in face_ids:
                             print("SUB-SCENARIO 2.2.3.1: VOICE ID IN LIST OF FACE IDs")
-                            self.queries = [v for v in voice_users if v.user_id == voice_id]
+                            self.queries = [v for v in voice_users if v.userid == voice_id]
                             return str(voice_id)
                         else:
                             print("SUB-SCENARIO 2.2.3.2: VOICE ID NOT IN LIST OF FACE IDs")
@@ -324,10 +324,10 @@ class ProcessRequest:
                 print("SUB-SCENARIO: ALL FACES RECOGNIZED")
                 face_ids = {match.person_id for match in known_face_matches}
                 # Filter voice_users to those matching face_ids
-                matching_voices = [v for v in voice_users if v.user_id is None or str(v.user_id) in face_ids]
+                matching_voices = [v for v in voice_users if v.userid is None or str(v.userid) in face_ids]
                 if len(matching_voices) == 1:
                     print("SUB-SCENARIO: ONE MATCHING VOICE")
-                    return str(matching_voices[0].user_id)
+                    return str(matching_voices[0].userid)
                 elif matching_voices:
                     print("SUB-SCENARIO: MULTIPLE MATCHING VOICES")
                     # Select highest-scoring voice
@@ -385,7 +385,9 @@ class ProcessRequest:
         
         if audio_payload and self.queries != []:
             print("send transcription to RAG")
-            answer = await answer_user_query([GenerateRequest(user_id = str(x.userid) if x.userid else str(uuid.uuid4()), question = x.transcription) for x in self.queries])
+            answer = await answer_user_query([GenerateRequest(user_id = str(x.userid) if x.userid else str(uuid.uuid4()), question = x.transcription).dict() for x in self.queries])
+            
+            
             print("Answer from RAG: ", answer.generation)
             self.queries = []
 

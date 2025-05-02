@@ -64,11 +64,15 @@ export const VoiceVideoRecorder = ({ onAudioReceived, isTalking }) => {
   const handleAudioReceived = (audioBase64, lipsyncData, isValid) => {
     console.log("Audio handler called");
     isWaitingForResponse.current = false;
+
     if (isValid){
       const audioBlob = base64ToBlob(audioBase64, "audio/wav");
       const audioUrl = URL.createObjectURL(audioBlob);
       onAudioReceived(audioUrl, lipsyncData);
     }
+  };
+  const handleInvalidRecieved = () => {
+    isWaitingForResponse.current = false;
   };
 
   const getSupportedMimeType = () => {
@@ -331,6 +335,9 @@ export const VoiceVideoRecorder = ({ onAudioReceived, isTalking }) => {
           const response = JSON.parse(event.data);
           if (response.audio && response.lipsync) {
             handleAudioReceived(response.audio, response.lipsync, response.valid);
+          }
+          else {
+            handleInvalidRecieved()
           }
         } catch (error) {
           console.error("Error processing websocket message:", error);

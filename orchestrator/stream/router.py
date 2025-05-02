@@ -56,7 +56,7 @@ def lip_sync_message(message):
     # print(f"Conversion done in {int((time.time() - start_time) * 1000)}ms")
 
     # Generate lip-sync JSON
-    exec_command(f'"{RHUBARB_PATH}" -f json -o ./output/{message}.json ./output/{message}.wav -r phonetic')
+    exec_command(f'"{RHUBARB_PATH}" -f json -o ./{message}.json ./{message}.wav -r phonetic')
     print(f"Lip sync done in {int((time.time() - start_time) * 1000)}ms")
 
 async def send_results_periodically(websocket: WebSocket, response):
@@ -140,6 +140,7 @@ async def websocket_media(websocket: WebSocket):
                     print(f'Total TIme: ' , end - start)
                     asyncio.create_task(send_results_periodically(websocket, response))
                 else:
+                    print("RESPONDED WITH INVALID")
                     json_data = {'valid': False}
                     asyncio.create_task(websocket.send_text(json.dumps(json_data)))
                     isProcessing = False

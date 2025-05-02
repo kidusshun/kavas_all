@@ -30,9 +30,10 @@ async def answer_user_query(
     try:
         url = "http://localhost:8002/rag/multi_query"
         response = requests.post(url, json={
-            "request":queries,
+            "queries":queries,
         })
         res = response.json()
+        print("JSON OUTPUT")
         return RAGResponse(**res)
     except Exception as e:
         raise e
