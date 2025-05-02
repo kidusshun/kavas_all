@@ -56,7 +56,7 @@ def lip_sync_message(message):
     # print(f"Conversion done in {int((time.time() - start_time) * 1000)}ms")
 
     # Generate lip-sync JSON
-    exec_command(f'"{RHUBARB_PATH}" -f json -o {message}.json {message}.wav -r phonetic')
+    exec_command(f'"{RHUBARB_PATH}" -f json -o ./output/{message}.json ./output/{message}.wav -r phonetic')
     print(f"Lip sync done in {int((time.time() - start_time) * 1000)}ms")
 
 async def send_results_periodically(websocket: WebSocket, response):

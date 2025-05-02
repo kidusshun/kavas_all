@@ -26,10 +26,11 @@ logger = logging.getLogger(__name__)
 
 class ProcessRequest:
     def __init__(self):
-        self.transcription = ""
+        # self.transcription = ""
+        self.queries: list[VoiceRecognitionResponse] = []
         self.voice_user = []
         self.face_user = []
-        self.user_id = None
+        # self.user_id = None
         self.image = None
         self.audio = None
         self.face_rec_ws = None
@@ -104,9 +105,8 @@ class ProcessRequest:
                     res =  response.json()
                     
                     print("time taken to process voice: ", time.time() - start)
-                    return  VoiceRecognitionResponse(**res)
+                    return [VoiceRecognitionResponse(**item) for item in res]
 
-                    
         except Exception as e:
             print("Error processing audio:", e)
             return None
@@ -167,125 +167,186 @@ class ProcessRequest:
         voice_user_result = None
         if audio_data:
             voice_user_result = await self.process_audio(audio_data)
-            if voice_user_result and voice_user_result.transcription:
-                self.transcription += voice_user_result.transcription
-
-        print("transcription: ", self.transcription)
+            if voice_user_result:
+                self.queries = voice_user_result
+            else:
+                self.isQueryNoise = True
+        
+        if self.latest_face_rec_state is None:
+            print("No face recognition state available")
+            self.isQueryNoise = True
+            return
         
         current_face_state = self.latest_face_rec_state.model_copy()
 
         if voice_user_result and current_face_state.matches:
-            self.user_id = await self.identify_user(voice_user_result, current_face_state)
-            print("User_ID:", self.user_id)
+            user_id = await self.identify_user(voice_user_result, current_face_state)
+            print("User_ID:", user_id)
         else:
             print("process_input: No voice result or face state with matches available for identification.")
 
 
 
-    async def identify_user(self, voice_user:VoiceRecognitionResponse, face_user:FaceRecognitionResponse) -> str:
+    async def identify_user(self, voice_users:list[VoiceRecognitionResponse], face_user:FaceRecognitionResponse) -> str:
         """
         Identify the user based on voice and face recognition results.
         """
         
-        voice_id = voice_user.userid
-        is_multiple_speakers = False # TODO: Modify basd on new voice detection logic
+        if not face_user:
+            self.isQueryNoise = True
+            return None
+        
+        voice_ids = set(voice_user.user_id for voice_user in voice_users if voice_user.user_id != None)
+        null_voice_ids = len(set(voice_user.user_id for voice_user in voice_users if voice_user.user_id == None))
+        is_multiple_speakers = len(voice_ids) > 1
         face_matches = face_user.matches
         processed_faces = len(face_matches)
         face_detected = face_user.face_detected
 
         known_face_matches = [m for m in face_matches if m.person_id != "Unknown" and m.confidence is not None]
         unknown_face_count = len([m for m in face_matches if m.person_id == "Unknown"])
+        
+        # Initialize queries
+        self.queries = voice_users
 
-        # Scenario 1: No voice
-        if not voice_id:
-            print("SCENARIO 1: NO VOICE")
-            if len(face_matches) == 1:
-                face = face_matches[0]
-                if face.person_id == "Unknown":
-                    print("SUB-SCENARIO 1.1: ONE UNKNOWN FACE DETECTED")
-                    new_id = uuid.uuid4()
-                    await add_voice_user(new_id, self.audio)
-                    await add_face_user(new_id, self.image)
-                    return str(new_id)
-                else:
-                    # 1 Known Face + unknown voice
-                    print("SUB-SCENARIO 1.2: ONE KNOWN FACE DETECTED, UNKNOWN VOICE")
-                    # TODO: possibly check confidence and speaker location and add to voice
-                    # await add_voice_user(uuid.UUID(face.person_id), self.audio)
-                    return face.person_id
-            else:
-                print("SUB-SCENARIO 1.3: MULTIPLE FACES DETECTED, NO VOICE")
-                return None
+        # No face detected: noise
+        if not face_detected or processed_faces == 0:
+            print("SCENARIO: NO FACE DETECTED")
+            self.isQueryNoise = True
+            self.queries = []
+            return None
 
-        # Scenario 3: 1 face match (recognized or unrecognized) and voice recognized
-        elif voice_id and processed_faces == 1:
-            print("SCENARIO 3: ONE FACE MATCH AND VOICE RECOGNIZED")
-            # Subscenario 3.1: Face not recognized
-            if unknown_face_count == 1 and not known_face_matches:
-                print("SUB-SCENARIO 3.1: FACE NOT RECOGNIZED")
-                if not is_multiple_speakers:
-                    await add_face_user(voice_id, self.image)
-                return str(voice_id)
-            # Subscenario 3.2: Face recognized
-            elif len(known_face_matches) == 1:
-                print("SUB-SCENARIO 3.2: FACE RECOGNIZED")
-                if known_face_matches[0].person_id == str(voice_id):
-                    print("SUB-SCENARIO 3.2.1: FACE ID == VOICE ID")
-                    return known_face_matches[0].person_id
-                else:
-                    print("SUB-SCENARIO 3.2.2: FACE ID != VOICE ID")
-                    # NOTE: possibly remove update since edge cases can cause problems here (speaker outside camera view)
-                    await update_face_user(voice_id, self.image)
-                    return str(voice_id)
+        # No voice detected: noise
+        if not voice_users:
+            print("SCENARIO: NO QUERY DETECTED")
+            self.isQueryNoise = True
+            self.queries = []
+            return None
+        
+        if not is_multiple_speakers:
+            # Get voice_id (None if unrecognized)
+            voice_id = voice_ids.pop() if voice_ids else None
 
-        # Scenario 4: Multiple face matches (recognized and/or unrecognized) and voice recognized
-        elif voice_id and processed_faces > 1:
-            print("SCENARIO 4: MULTIPLE FACE MATCHES AND VOICE RECOGNIZED")
-            if is_multiple_speakers:
-                self.isQueryNoise = True
-                return None
-            face_ids = [match.person_id for match in known_face_matches]
-            # Subscenario 4.1: All faces not recognized
-            if unknown_face_count == processed_faces and not known_face_matches:
-                print("SUB-SCENARIO 4.1: ALL FACES NOT RECOGNIZED")
-                if not is_multiple_speakers:
-                    await add_face_user(voice_id, self.image)
-                return str(voice_id)
-            # Subscenario 4.2: Mixed recognition on face and voice recognized
-            elif known_face_matches and unknown_face_count > 0:
-                print("SUB-SCENARIO 4.2: MIXED RECOGNITION ON FACE AND VOICE RECOGNIZED")
-                if str(voice_id) in face_ids:
-                    print("SUB-SCENARIO 4.2.1: VOICE ID IN LIST OF FACE IDs")
-                    return str(voice_id)
+             # Scenario 1: One unrecognized voice
+            if not voice_id and null_voice_ids == 1:
+                print("SCENARIO 1: ONE UNRECOGNIZED VOICE")
+                if processed_faces == 1:
+                    face = face_matches[0]
+                    if face.person_id == "Unknown":
+                        print("SUB-SCENARIO 1.1: ONE UNKNOWN FACE DETECTED")
+                        new_id = uuid.uuid4()
+                        await add_voice_user(new_id, self.audio)
+                        await add_face_user(new_id, self.image)
+                        corrected_queries = [
+                            VoiceRecognitionResponse(user_id=new_id, score=voice_user.score)
+                            if voice_user.user_id is None else voice_user
+                            for voice_user in voice_users
+                        ]
+                        self.queries = corrected_queries
+                        return str(new_id)
+                    else:
+                        print("SUB-SCENARIO 1.2: ONE KNOWN FACE DETECTED")
+                        user_id = uuid.UUID(face.person_id)
+                        await add_voice_user(user_id, self.audio)
+                        corrected_queries = [
+                            VoiceRecognitionResponse(user_id=user_id, score=voice_user.score)
+                            if voice_user.user_id is None else voice_user
+                            for voice_user in voice_users
+                        ]
+                        self.queries = corrected_queries
+                        return face.person_id
                 else:
-                    print("SUB-SCENARIO 4.2.2: VOICE ID NOT IN LIST OF FACE IDs")
-                    if not is_multiple_speakers:
+                    print("SUB-SCENARIO 1.3: MULTIPLE FACES DETECTED")
+                    self.isQueryNoise = True
+                    self.queries = []
+                    # TODO: possibly infer speaker from face recognition
+                    return None
+
+
+            # Scenario 2: One recognized voice
+            elif voice_id:
+                print("SCENARIO 2: ONE RECOGNIZED VOICE")
+                # Subscenario 2.1: One face match
+                if processed_faces == 1:
+                    print("SUB-SCENARIO 2.1: ONE FACE MATCH")
+                    # Subscenario 2.1.1: Face not recognized
+                    if unknown_face_count == 1 and not known_face_matches:
+                        print("SUB-SCENARIO 2.1.1: FACE NOT RECOGNIZED")
                         await add_face_user(voice_id, self.image)
-                    return str(voice_id)
-            # Subscenario 4.3: All recognized faces and voice recognized
-            elif len(known_face_matches) == processed_faces and unknown_face_count == 0:
-                print("SUB-SCENARIO 4.3: ALL RECOGNIZED FACES AND VOICE RECOGNIZED")
-                if str(voice_id) in face_ids:
-                    print("SUB-SCENARIO 4.3.1: VOICE ID IN LIST OF FACE IDs")
-                    return str(voice_id)
+                        return str(voice_id)
+                    # Subscenario 2.1.2: Face recognized
+                    elif len(known_face_matches) == 1:
+                        print("SUB-SCENARIO 2.1.2: FACE RECOGNIZED")
+                        if known_face_matches[0].person_id == str(voice_id):
+                            print("SUB-SCENARIO 2.1.2.1: FACE ID == VOICE ID")
+                            self.queries = [v for v in voice_users if v.user_id == voice_id]
+                            return str(voice_id)
+                        else:
+                            print("SUB-SCENARIO 2.1.2.2: FACE ID != VOICE ID")
+                            await update_face_user(voice_id, self.image)
+                            return str(voice_id)
+                # Subscenario 2.2: Multiple face matches
+                elif processed_faces > 1:
+                    print("SUB-SCENARIO 2.2: MULTIPLE FACE MATCHES")
+                    face_ids = [match.person_id for match in known_face_matches]
+                    # Subscenario 2.2.1: All faces not recognized
+                    if unknown_face_count == processed_faces and not known_face_matches:
+                        print("SUB-SCENARIO 2.2.1: ALL FACES NOT RECOGNIZED")
+                        await add_face_user(voice_id, self.image)
+                        return str(voice_id)
+                    # Subscenario 2.2.2: Mixed recognition on face
+                    elif known_face_matches and unknown_face_count > 0:
+                        print("SUB-SCENARIO 2.2.2: MIXED RECOGNITION ON FACE")
+                        if str(voice_id) in face_ids:
+                            print("SUB-SCENARIO 2.2.2.1: VOICE ID IN LIST OF FACE IDs")
+                            self.queries = [v for v in voice_users if v.user_id == voice_id]
+                            return str(voice_id)
+                        else:
+                            print("SUB-SCENARIO 2.2.2.2: VOICE ID NOT IN LIST OF FACE IDs")
+                            await add_face_user(voice_id, self.image)
+                            self.queries = [v for v in voice_users if v.user_id == voice_id]
+                            return str(voice_id)
+                    # Subscenario 2.2.3: All recognized faces
+                    elif len(known_face_matches) == processed_faces and unknown_face_count == 0:
+                        print("SUB-SCENARIO 2.2.3: ALL RECOGNIZED FACES")
+                        if str(voice_id) in face_ids:
+                            print("SUB-SCENARIO 2.2.3.1: VOICE ID IN LIST OF FACE IDs")
+                            self.queries = [v for v in voice_users if v.user_id == voice_id]
+                            return str(voice_id)
+                        else:
+                            print("SUB-SCENARIO 2.2.3.2: VOICE ID NOT IN LIST OF FACE IDs")
+                            await update_face_user(voice_id, self.image)
+                            return str(voice_id)
+        else:
+            print("SCENARIO: MULTIPLE VOICES DETECTED")
+            # All faces recognized
+            if unknown_face_count == 0 and len(known_face_matches) == processed_faces:
+                print("SUB-SCENARIO: ALL FACES RECOGNIZED")
+                face_ids = {match.person_id for match in known_face_matches}
+                # Filter voice_users to those matching face_ids
+                matching_voices = [v for v in voice_users if v.user_id is None or str(v.user_id) in face_ids]
+                if len(matching_voices) == 1:
+                    print("SUB-SCENARIO: ONE MATCHING VOICE")
+                    return str(matching_voices[0].user_id)
+                elif matching_voices:
+                    print("SUB-SCENARIO: MULTIPLE MATCHING VOICES")
+                    # Select highest-scoring voice
+                    self.queries = matching_voices
+                    return None
                 else:
-                    print("SUB-SCENARIO 4.3.2: VOICE ID NOT IN LIST OF FACE IDs")
-                    # NOTE: possibly check most probable speaking face and and update his face assumes a lot and could be prone to errors
-                    await update_face_user(voice_id, self.image)
-                    return str(voice_id)
-
-        # Scenario: No face detected (skipped for now)
-        elif not face_detected or processed_faces == 0:
-            print("SCENARIO 5: NO FACE DETECTED (SKIPPED)")
-            if voice_id:
-                print("SUB-SCENARIO 5.1: VOICE IDENTIFIED, NO FACE DETECTED")
-                return str(voice_id)
+                    print("SUB-SCENARIO: NO MATCHING VOICES")
+                    self.isQueryNoise = True
+                    return None
+            # Some or all faces unrecognized
             else:
-                print("SUB-SCENARIO 5.2: NO VOICE OR FACE DETECTED")
+                print("SUB-SCENARIO: NOT ALL FACES RECOGNIZED")
+                # If exactly one recognized voice, use it
+                self.queries = voice_users
                 return None
-
+        
         print("UNHANDLED SCENARIO.")
-        return None
+        self.isQueryNoise = True
+        self.queries = []
 
     async def __call__(self, audio_payload):
         if not audio_payload:
@@ -322,11 +383,11 @@ class ProcessRequest:
             self.isQueryNoise = False
             return None
         
-        if audio_payload and self.transcription != "":
+        if audio_payload and self.queries != []:
             print("send transcription to RAG")
-            answer = await answer_user_query(GenerateRequest(user_id = self.user_id if self.user_id else str(uuid.uuid4()), question = self.transcription))
+            answer = await answer_user_query([GenerateRequest(user_id = str(x.userid) if x.userid else str(uuid.uuid4()), question = x.transcription) for x in self.queries])
             print("Answer from RAG: ", answer.generation)
-            self.transcription = ""
+            self.queries = []
 
             start_time_tts = time.time()
             response_tts = await generate_tts(answer.generation)

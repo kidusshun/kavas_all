@@ -25,13 +25,12 @@ async def generate_tts(
     
 
 async def answer_user_query(
-    request: GenerateRequest,
+    queries: list[GenerateRequest],
 ):
     try:
-        url = "http://localhost:8002/rag/query"
+        url = "http://localhost:8002/rag/multi_query"
         response = requests.post(url, json={
-            "user_id":request.user_id,
-            "question":request.question,
+            "request":queries,
         })
         res = response.json()
         return RAGResponse(**res)
