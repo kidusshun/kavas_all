@@ -43,32 +43,29 @@ async def process_voice(object, conn):
         return TranscriptionResponse(userid=uuid.UUID(user[0]), transcription=transcription, score=user[1])
 
 
-async def process_all_voices(embedded_voices, conn):
-    tasks = [process_voice(obj, conn) for obj in embedded_voices]
-    users = await asyncio.gather(*tasks)
-    return users
-
-async def find_user_service(*,audio_file_path: str,user_name:str | None, conn: connection,) -> list[TranscriptionResponse]:
-    start = time.time()
-    start_temp = time.time()
+async def find_user_service(*,audio_file_path: str,user_name:str | None, conn: connection,) -> TranscriptionResponse:
     preprocessed_audio_path = preprocess_audio_in_memory(audio_file_path)
-    print(f"Time taken for preprocessing: {time.time() - start_temp} seconds")
 
-    start_diarization = time.time()
     try:
-        embedded_voices = process_audio(preprocessed_audio_path)
+        result = await whisper_transcribe(audio_path=preprocessed_audio_path)
+        transcrption = result.get("text", None)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Unable to transcribe audio")
+    
+
+    try:
+        embedded_voice = pyannote_embed_audio(preprocessed_audio_path)
     except Exception as e:
         raise HTTPException(status_code=500, detail="Unable to diarize audio")
 
-    print(f"Time taken for diarization: {time.time() - start_diarization} seconds")
+    user = identify_user(embedded_voice, conn=conn)
 
-    try:
-        users = await process_all_voices(embedded_voices, conn=conn)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail="Unable to process voices")
+    if not user:
+        result = TranscriptionResponse(userid=None, transcription=transcrption, score=0)
+    else:
+        result = TranscriptionResponse(userid=uuid.UUID(user[0]), transcription=transcrption, score=user[1])
     
-    print(f"Time taken for processing: {time.time() - start} seconds")
-    return users
+    return result
 
 
 def generate_speech_service(text: str) -> bytes:
