@@ -17,7 +17,7 @@ services:
       mongodb:
         condition: service_healthy # Wait until mongodb reports healthy
     ports:
-      - "8002:8000" # Map host 8002 to container 8000 as per your CMD
+      - "8002:8000"
 
   mongodb:
     image: mongo:latest

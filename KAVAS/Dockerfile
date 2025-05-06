@@ -17,7 +17,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Login to Hugging Face CLI using a token
 ARG HF_TOKEN
-RUN huggingface-cli login --token $HF_TOKEN
+RUN huggingface-cli login --token ${HF_TOKEN}
 
 # Copy the current directory contents into the container at /app
 COPY . .
