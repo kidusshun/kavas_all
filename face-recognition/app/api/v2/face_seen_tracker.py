@@ -7,6 +7,18 @@ class MatchTimeTracker:
 
     def update(self, matches):
         now = datetime.utcnow()
+        
+        if not matches:
+            for person_id, state in self.face_states.items():
+                time_since_last_seen = now - state["last_seen_time"]
+                
+                # If person hasn't been seen for a while, reset their state
+                if time_since_last_seen > timedelta(seconds=30):
+                    state["frames_present"] = 0
+                    state["last_seen_time"] = now
+                    state["greeted"] = False
+                
+    
         for match in matches:
             if match.person_id.lower() == "unknown":
                 continue
@@ -16,19 +28,20 @@ class MatchTimeTracker:
             if state:
                 time_since_last_seen = now - state["last_seen_time"]
 
-                if time_since_last_seen > timedelta(hours=2):
-                    # Remove if not seen for over 2 hours
-                    self.face_states.pop(match.person_id)
-                    continue
-
-                elif time_since_last_seen > timedelta(minutes=1):
+                if time_since_last_seen > timedelta(seconds=20):
                     # Reset frames but keep greeted status
-                    state["frames_present"] = 0
+                    state["frames_present"] = 1
                     state["last_seen_time"] = now
-
-                else:
+                    state["greeted"] = False
+                elif time_since_last_seen < timedelta(seconds=3):
+                    # They were seen recently, so increment their counter
                     state["frames_present"] += 1
                     state["last_seen_time"] = now
+                else:
+                    # They were seen a while ago, so reset everything
+                    state["frames_present"] = 1
+                    state["last_seen_time"] = now
+                    
 
                 # Suppress greeting if they linger too long without one
                 if state["frames_present"] > 30:
@@ -45,13 +58,23 @@ class MatchTimeTracker:
     def get_new_faces(self):
         """Return list of person_ids who have not been greeted and are in frame between 10–30 frames"""
         now = datetime.utcnow()
+        new_faces = [
+            (person_id, state["frames_present"])
+            for person_id, state in self.face_states.items()
+            if (
+                not state["greeted"]
+                and 10 <= state["frames_present"] <= 30
+            )
+        ]
+        print(new_faces)
+        
         return [
             person_id
             for person_id, state in self.face_states.items()
             if (
                 not state["greeted"]
                 and 10 <= state["frames_present"] <= 30
-                and (now - state["last_seen_time"]) <= timedelta(minutes=1)
+                and (now - state["last_seen_time"]) <= timedelta(seconds=3)
             )
         ]
 
