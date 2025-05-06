@@ -58,15 +58,6 @@ class MatchTimeTracker:
     def get_new_faces(self):
         """Return list of person_ids who have not been greeted and are in frame between 10–30 frames"""
         now = datetime.utcnow()
-        new_faces = [
-            (person_id, state["frames_present"])
-            for person_id, state in self.face_states.items()
-            if (
-                not state["greeted"]
-                and 10 <= state["frames_present"] <= 30
-            )
-        ]
-        print(new_faces)
         
         return [
             person_id
